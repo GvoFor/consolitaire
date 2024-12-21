@@ -1,0 +1,10 @@
+[package]
+name = "consolitaire"
+version = "0.1.0"
+edition = "2021"
+authors = ["Pumnia Mykhailo <misha.pumnya@gmail.com>"]
+description = "My console recreation of Microsoft Solitaire game"
+
+[dependencies]
+itertools = "0.13.0"
+rand = "0.8.5"
