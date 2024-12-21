@@ -1,27 +1,11 @@
-use super::Game;
+mod ascii_renderer;
+mod text_output_renderer;
 
-pub struct TextOutputRenderer;
+use std::io::Result;
 
-impl TextOutputRenderer {
-    pub fn render(game: &Game) {
-        let deck = game.get_deck();
-        println!("Deck: {deck}");
-        
-        let pile = game.get_pile();
-        println!("Pile: {pile}");
-        
-        println!("");
-        
-        let suit_stacks = game.get_suit_stacks();
-        for (i, stack) in suit_stacks.iter().enumerate() {
-            println!("Suit stack {}: {stack}", i + 1);
-        }
-        
-        println!("");
-        
-        let stacks = game.get_stacks();
-        for (i, stack) in stacks.iter().enumerate() {
-            println!("Suit stack {}: {stack}", i + 1);
-        }
-    }
+pub use ascii_renderer::ASCIIRenderer;
+pub use text_output_renderer::TextOutputRenderer;
+
+pub trait Renderer<T> {
+    fn render(t: &T) -> Result<()>;
 }

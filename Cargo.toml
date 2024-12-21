@@ -6,5 +6,6 @@ authors = ["Pumnia Mykhailo <misha.pumnya@gmail.com>"]
 description = "My console recreation of Microsoft Solitaire game"
 
 [dependencies]
+crossterm = "0.28.1"
 itertools = "0.13.0"
 rand = "0.8.5"

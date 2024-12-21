@@ -1,4 +1,4 @@
-use super::{renderer::TextOutputRenderer, Game};
+use super::{renderer::Renderer, Game};
 use std::io::{stdin, BufRead, BufReader};
 
 const WELCOME_MESSAGE: &str = "Welcome to >>> Consolitaire <<<";
@@ -28,20 +28,14 @@ enum Command {
     Invalid,
 }
 
-pub struct TextInputEngine {
-    game: Game,
-}
+pub struct TextInputEngine;
 struct InputParser;
 
 impl TextInputEngine {
-    pub fn new(game: Game) -> Self {
-        Self { game }
-    }
-
-    pub fn start(&mut self) {
+    pub fn start<R: Renderer<Game>>(mut game: &mut Game) {
         println!("{WELCOME_MESSAGE}");
         println!("{MENU_MESSAGE}");
-        self.show_game();
+        Self::show_game::<R>(&game);
 
         let mut input = String::new();
         let mut reader = BufReader::new(stdin());
@@ -52,26 +46,28 @@ impl TextInputEngine {
                     let command = InputParser::parse(&input);
 
                     match command {
-                        Command::ClickOnDeck => self.click_on_deck(),
-                        Command::MoveCardFromPileToStack(i) => self.move_card_from_pile_to_stack(i),
+                        Command::ClickOnDeck => Self::click_on_deck(&mut game),
+                        Command::MoveCardFromPileToStack(i) => {
+                            Self::move_card_from_pile_to_stack(&mut game, i)
+                        }
                         Command::MoveCardFromPileToSuitStack(i) => {
-                            self.move_card_from_pile_to_suit_stack(i)
+                            Self::move_card_from_pile_to_suit_stack(&mut game, i)
                         }
                         Command::MoveCardFromStackToStack(i, j) => {
-                            self.move_card_from_stack_to_stack(i, j)
+                            Self::move_card_from_stack_to_stack(&mut game, i, j)
                         }
                         Command::MoveCardFromStackToSuitStack(i, j) => {
-                            self.move_card_from_stack_to_suit_stack(i, j)
+                            Self::move_card_from_stack_to_suit_stack(&mut game, i, j)
                         }
                         Command::MoveCardFromSuitStackToStack(i, j) => {
-                            self.move_card_from_suit_stack_to_stack(i, j)
+                            Self::move_card_from_suit_stack_to_stack(&mut game, i, j)
                         }
                         Command::Exit => {
                             println!(">> Exiting the game");
                             break;
                         }
                         Command::Restart => {
-                            self.restart();
+                            Self::restart(&mut game);
                         }
                         Command::Invalid => {
                             println!(">> Invalid command")
@@ -79,86 +75,87 @@ impl TextInputEngine {
                     }
                 }
                 Err(error) => {
-                    println!("{error}");
+                    eprintln!("Error reading input: {error}");
                     break;
                 }
             }
 
-            self.show_game();
+            Self::show_game::<R>(&game);
         }
 
         println!(">> The game was exited");
     }
 
-    fn show_game(&self) {
+    fn show_game<R: Renderer<Game>>(game: &Game) {
         println!("----- Table -----");
-        TextOutputRenderer::render(&self.game);
-        println!("----- - - - -----");
+        if let Err(error) = R::render(game) {
+            eprintln!("Error rendering game: {error}");
+        }
     }
 
-    fn click_on_deck(&mut self) {
+    fn click_on_deck(game: &mut Game) {
         println!(">> You clicked on the deck");
-        self.game.move_cards_from_deck_to_pile();
+        game.move_cards_from_deck_to_pile();
     }
 
-    fn move_card_from_pile_to_stack(&mut self, i: usize) {
+    fn move_card_from_pile_to_stack(game: &mut Game, i: usize) {
         println!(">> Trying to move the card from pile to stack {i}");
         let mut status = "Fail";
         if i > 0 {
-            if self.game.move_card_from_pile_to_stack(i - 1) {
+            if game.move_card_from_pile_to_stack(i - 1) {
                 status = "Success";
             }
         }
         println!(">> {status}");
     }
 
-    fn move_card_from_pile_to_suit_stack(&mut self, i: usize) {
+    fn move_card_from_pile_to_suit_stack(game: &mut Game, i: usize) {
         println!(">> Trying to move the card from pile to suit stack {i}");
         let mut status = "Fail";
         if i > 0 {
-            if self.game.move_card_from_pile_to_suit_stack(i - 1) {
+            if game.move_card_from_pile_to_suit_stack(i - 1) {
                 status = "Success";
             }
         }
         println!(">> {status}");
     }
 
-    fn move_card_from_stack_to_stack(&mut self, i: usize, j: usize) {
+    fn move_card_from_stack_to_stack(game: &mut Game, i: usize, j: usize) {
         println!(">> Trying to move the card from stack {i} to stack {j}");
         let mut status = "Fail";
         if i > 0 && j > 0 {
-            if self.game.move_card_from_stack_to_stack(i - 1, j - 1) {
+            if game.move_card_from_stack_to_stack(i - 1, j - 1) {
                 status = "Success";
             }
         }
         println!(">> {status}");
     }
 
-    fn move_card_from_stack_to_suit_stack(&mut self, i: usize, j: usize) {
+    fn move_card_from_stack_to_suit_stack(game: &mut Game, i: usize, j: usize) {
         println!(">> Trying to move the card from stack {i} to suit stack {j}");
         let mut status = "Fail";
         if i > 0 && j > 0 {
-            if self.game.move_card_from_stack_to_suit_stack(i - 1, j - 1) {
+            if game.move_card_from_stack_to_suit_stack(i - 1, j - 1) {
                 status = "Success";
             }
         }
         println!(">> {status}");
     }
 
-    fn move_card_from_suit_stack_to_stack(&mut self, i: usize, j: usize) {
+    fn move_card_from_suit_stack_to_stack(game: &mut Game, i: usize, j: usize) {
         println!(">> Trying to move the card from suit stack {i} to stack {j}");
         let mut status = "Fail";
         if i > 0 && j > 0 {
-            if self.game.move_card_from_suit_stack_to_stack(i - 1, j - 1) {
+            if game.move_card_from_suit_stack_to_stack(i - 1, j - 1) {
                 status = "Success";
             }
         }
         println!(">> {status}");
     }
 
-    fn restart(&mut self) {
+    fn restart(game: &mut Game) {
         println!(">> Restarting the game");
-        self.game.restart();
+        game.restart();
     }
 }
 
