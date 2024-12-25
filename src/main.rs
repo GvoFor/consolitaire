@@ -1,8 +1,11 @@
 mod game;
-use std::env::{self, Args};
+use std::{
+    env::{self, Args},
+    io::{stdout, Stdout},
+};
 
 use game::{
-    engine::TextInputEngine,
+    engine::{Engine, MouseInputEngine, TextInputEngine},
     renderer::{ASCIIRenderer, TextOutputRenderer},
     Game,
 };
@@ -14,14 +17,15 @@ enum GameVersion {
 }
 
 fn main() {
-    let mut game = Game::default();
+    let game = Game::default();
+    let out = stdout();
 
     let version = parse_env_args(env::args());
     match version {
-        GameVersion::V1 => start_v1(&mut game),
-        GameVersion::V2 => start_v2(&mut game),
-        GameVersion::Default => start_v2(&mut game),
-    }
+        GameVersion::V1 => start_game_v1(game),
+        GameVersion::V2 => start_game_v2(game, out),
+        GameVersion::Default => start_game_v2(game, out),
+    };
 }
 
 fn parse_env_args(args: Args) -> GameVersion {
@@ -36,12 +40,20 @@ fn parse_env_args(args: Args) -> GameVersion {
     }
 }
 
-fn start_v1(game: &mut Game) {
+fn start_game_v1(mut game: Game) {
     println!("Starting game verion 1");
-    TextInputEngine::start::<TextOutputRenderer>(game);
+    let renderer = TextOutputRenderer;
+    let mut engine = TextInputEngine::new(&mut game, renderer);
+    if let Err(error) = engine.start() {
+        println!("Error during the game: {error}");
+    }
 }
 
-fn start_v2(game: &mut Game) {
+fn start_game_v2(mut game: Game, mut out: Stdout) {
     println!("Starting game verion 2");
-    TextInputEngine::start::<ASCIIRenderer>(game);
+    let renderer = ASCIIRenderer::new(&mut out);
+    let mut engine = MouseInputEngine::new(&mut game, renderer);
+    if let Err(error) = engine.start() {
+        println!("Error during the game: {error}");
+    }
 }

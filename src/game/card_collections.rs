@@ -34,6 +34,14 @@ impl Stack {
         self.0.last()
     }
 
+    pub fn prelast(&self) -> Option<&Card> {
+        if self.0.len() < 2 {
+            None
+        } else {
+            self.0.get(self.0.len() - 2)
+        }
+    }
+
     pub fn pop_into(&mut self, stack: &mut Stack) {
         if let Some(card) = self.0.pop() {
             stack.push(card);
@@ -129,6 +137,10 @@ impl Pile {
 
     pub fn clear(&mut self) {
         self.cards.clear();
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.cards.is_empty()
     }
 }
 

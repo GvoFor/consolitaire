@@ -2,6 +2,7 @@ pub mod card;
 pub mod card_collections;
 pub mod engine;
 pub mod renderer;
+mod shared;
 
 use card::{Card, CoveringOrder};
 use card_collections::{Deck, Pile, Stack};
@@ -58,22 +59,6 @@ impl Game {
         for stack in stacks {
             stack.reveal_last();
         }
-    }
-
-    fn get_deck(&self) -> &Deck {
-        &self.deck
-    }
-
-    fn get_suit_stacks(&self) -> &[Stack; 4] {
-        &self.suit_stacks
-    }
-
-    fn get_stacks(&self) -> &[Stack] {
-        &self.stacks
-    }
-
-    fn get_pile(&self) -> &Pile {
-        &self.pile
     }
 
     fn restart(&mut self) {
