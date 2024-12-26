@@ -1,10 +1,7 @@
 use super::card::Card;
-use std::fmt;
 
 #[derive(Debug)]
 pub struct Stack(Vec<Card>);
-
-struct StackSlice<'a>(&'a [Card]);
 
 #[derive(Debug)]
 pub struct Pile {
@@ -75,30 +72,6 @@ impl Stack {
     }
 }
 
-impl fmt::Display for Stack {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        let items = self
-            .0
-            .iter()
-            .map(|card| card.to_string())
-            .collect::<Vec<_>>()
-            .join(", ");
-        write!(formatter, "{items}")
-    }
-}
-
-impl<'a> fmt::Display for StackSlice<'a> {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let items = self
-            .0
-            .iter()
-            .map(|item| format!("{}", item))
-            .collect::<Vec<_>>()
-            .join(", ");
-        write!(formatter, "{items}")
-    }
-}
-
 impl Pile {
     pub fn new(size: usize, capacity: usize) -> Self {
         Self {
@@ -144,15 +117,6 @@ impl Pile {
     }
 }
 
-impl fmt::Display for Pile {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        let len = self.len();
-        let nonvisible_cards = if len > self.size { "▓, " } else { "" };
-        let visible_cards = StackSlice(self.get_visible_cards());
-        write!(formatter, "{nonvisible_cards}{visible_cards} ({len} cards)")
-    }
-}
-
 impl Deck {
     pub fn random() -> Self {
         use super::card::{Suit::*, Value::*};
@@ -195,13 +159,5 @@ impl Deck {
 
     pub fn reveal_all(&mut self) {
         self.cards.reveal_all();
-    }
-}
-
-impl fmt::Display for Deck {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        let len = self.len();
-        let deck: &str = if len > 0 { "▓" } else { "" };
-        write!(formatter, "{deck} ({len} cards)")
     }
 }

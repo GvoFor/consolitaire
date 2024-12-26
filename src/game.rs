@@ -1,14 +1,32 @@
-pub mod card;
-pub mod card_collections;
-pub mod engine;
-pub mod renderer;
-mod shared;
+mod card;
+mod card_collections;
+mod engine;
+mod renderer;
 
 use card::{Card, CoveringOrder};
 use card_collections::{Deck, Pile, Stack};
+use engine::GameEngine;
 
 const CARDS_IN_SUIT: usize = 13;
 const CARDS_IN_DECK: usize = CARDS_IN_SUIT * 4;
+
+#[derive(Debug, Clone, Copy)]
+enum GameObject {
+    Deck,
+    Pile,
+    LastCardOfStack(u16),
+    SuitStack(u16),
+    None,
+}
+
+impl GameObject {
+    pub fn is_none(&self) -> bool {
+        match self {
+            Self::None => true,
+            _ => false,
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Game {
@@ -40,6 +58,14 @@ impl Game {
             suit_stacks,
             stacks,
             pile,
+        }
+    }
+
+    pub fn start(&mut self) {
+        let mut engine = GameEngine::new(self);
+
+        if let Err(error) = engine.start() {
+            println!("Error during the game: {error}");
         }
     }
 
