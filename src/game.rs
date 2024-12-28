@@ -14,6 +14,7 @@ const CARDS_IN_DECK: usize = CARDS_IN_SUIT * 4;
 enum GameObject {
     Deck,
     Pile,
+    CardOfStack { stack_i: u16, card_i: u16 },
     LastCardOfStack(u16),
     SuitStack(u16),
     None,
@@ -173,6 +174,47 @@ impl Game {
             }
         }
         false
+    }
+
+    fn move_cards_from_stack_to_stack(
+        &mut self,
+        i: usize,
+        j: usize,
+        starting_from_card_i: usize,
+    ) -> bool {
+        if i == j
+            || i >= self.stacks.len()
+            || j >= self.stacks.len()
+            || starting_from_card_i >= self.stacks[i].len()
+        {
+            return false;
+        }
+
+        let (left, right) = self.stacks.split_at_mut(j.max(i));
+
+        let (from, into) = if i < j {
+            (&mut left[i], &mut right[0])
+        } else {
+            (&mut right[0], &mut left[j])
+        };
+
+        let covering_card = from.get_all().get(starting_from_card_i);
+        let card_to_cover = into.last();
+
+        if Card::can_one_be_covered_with_another(
+            card_to_cover,
+            covering_card,
+            CoveringOrder::Descending,
+        ) {
+            let cards_to_move = from.len() - starting_from_card_i;
+            let mut temp_stack = Stack::with_capacity(cards_to_move);
+            from.pop_n_last_into(cards_to_move, &mut temp_stack);
+            from.reveal_last();
+            temp_stack.pop_n_last_into(cards_to_move, into);
+            true
+        } else {
+            false
+        }
     }
 }
 

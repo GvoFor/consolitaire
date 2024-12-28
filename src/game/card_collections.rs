@@ -45,6 +45,16 @@ impl Stack {
         }
     }
 
+    pub fn pop_n_last_into(&mut self, n: usize, stack: &mut Stack) {
+        for _ in 0..n {
+            if let Some(card) = self.0.pop() {
+                stack.push(card);
+            } else {
+                break;
+            }
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }

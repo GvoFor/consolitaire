@@ -78,98 +78,19 @@ impl GameRenderer {
     pub fn render(&mut self, game: &Game) -> Result<()> {
         execute!(self.out, Clear(ClearType::All))?;
 
-        let mut selected_card = None;
-
-        // Render suit stacks
-        let suit_stacks = &game.suit_stacks;
-        for (i, stack) in suit_stacks.iter().enumerate() {
-            let (x, y) = get_suit_stack_position(i as u16);
-
-            let last_card = match self.selected_object {
-                GameObject::SuitStack(j) if j == i as u16 => {
-                    selected_card = stack.last();
-                    stack.prelast()
-                }
-                _ => stack.last(),
-            };
-
-            match last_card {
-                Some(card) => self.draw_card(card, x, y, Color::White)?,
-                None => self.draw_suit_card_placeholder(x, y, Color::DarkGrey)?,
-            }
+        for (i, stack) in game.suit_stacks.iter().enumerate() {
+            self.render_suit_stack(stack, i as u16)?;
         }
 
-        // Render pile
-        let pile = &game.pile;
-        {
-            let (mut x, y) = get_pile_position(pile);
+        self.render_pile(&game.pile)?;
 
-            let visible_cards = pile.get_visible_cards();
-            let all_cards_count = pile.len() as u16;
-            let mut visible_cards_count = visible_cards.len() as u16;
+        self.render_deck(&game.deck)?;
 
-            if visible_cards_count < all_cards_count {
-                self.draw_card_outline(x, y, Color::White)?;
-                x += 1;
-            }
-
-            if let GameObject::Pile = self.selected_object {
-                selected_card = visible_cards.last();
-                visible_cards_count -= 1;
-            }
-
-            for i in 0..visible_cards_count {
-                let card = &visible_cards[i as usize];
-                self.draw_card(card, x, y, Color::White)?;
-                x += CARD_COLS.div(2);
-            }
+        for (i, stack) in game.stacks.iter().enumerate() {
+            self.render_stack(stack, i as u16)?;
         }
 
-        // Render deck
-        let deck = &game.deck;
-        {
-            let (x, y) = get_deck_position(deck);
-
-            match deck.len() {
-                0 => self.draw_card_outline(x, y, Color::DarkGrey)?,
-                1 => self.draw_hidden_card(x, y, Color::White)?,
-                _ => {
-                    self.draw_hidden_card(x + 1, y, Color::White)?;
-                    self.draw_hidden_card(x, y, Color::White)?;
-                }
-            }
-        }
-
-        // Render stacks
-        let stacks = &game.stacks;
-        for (i, stack) in stacks.iter().enumerate() {
-            let (mut x, mut y) = get_stack_position(i as u16);
-
-            self.draw_card_deshed_outline(x, y, Color::DarkGrey)?;
-
-            let cards = stack.get_all();
-            let cards_len = match self.selected_object {
-                GameObject::LastCardOfStack(j) if j == i as u16 => {
-                    selected_card = cards.last();
-                    cards.len() - 1
-                }
-                _ => cards.len(),
-            };
-
-            for j in 0..cards_len {
-                let card = &cards[j];
-                self.draw_card(card, x, y, Color::White)?;
-                x += STACK_CARD_X_OFFSET;
-                y += STACK_CARD_Y_OFFSET;
-            }
-        }
-
-        // Render selected card
-        if let Some(card) = selected_card {
-            let x = self.selected_object_column;
-            let y = self.selected_object_row;
-            self.draw_card(card, x, y, Color::White)?;
-        }
+        self.render_selected_object(game)?;
 
         execute!(
             self.out,
@@ -205,10 +126,17 @@ impl GameRenderer {
         }
 
         for i in 0..game.stacks.len() {
-            let (stack_x, stack_y) = get_stack_last_card_position(&game.stacks, i as u16);
+            let (last_card_x, last_card_y) = get_stack_last_card_position(&game.stacks, i as u16);
 
-            if is_point_inside_card(x, y, stack_x, stack_y) {
+            if is_point_inside_card(x, y, last_card_x, last_card_y) {
                 return GameObject::LastCardOfStack(i as u16);
+            }
+
+            if let Some(card_i) = get_index_of_card_in_stack_at(&game.stacks, i as u16, x, y) {
+                return GameObject::CardOfStack {
+                    card_i,
+                    stack_i: i as u16,
+                };
             }
         }
 
@@ -224,7 +152,7 @@ impl GameRenderer {
             GameObject::Pile => !game.pile.is_empty(),
             GameObject::SuitStack(i) => !game.suit_stacks[i as usize].is_empty(),
             GameObject::LastCardOfStack(i) => !game.stacks[i as usize].is_empty(),
-            GameObject::None => true,
+            GameObject::None | GameObject::CardOfStack { .. } => true,
             _ => false,
         };
 
@@ -322,6 +250,116 @@ impl GameRenderer {
             )
         }
     }
+
+    fn draw_cards_in_stack(
+        &mut self,
+        cards: &[Card],
+        x0: u16,
+        y0: u16,
+        color: Color,
+    ) -> Result<()> {
+        let cards_len = cards.len() as u16;
+
+        for i in 0..cards_len {
+            let card = &cards[i as usize];
+            let x = x0 + i * STACK_CARD_X_OFFSET;
+            let y = y0 + i * STACK_CARD_Y_OFFSET;
+            self.draw_card(card, x, y, color)?;
+        }
+
+        Ok(())
+    }
+
+    fn render_pile(&mut self, pile: &Pile) -> Result<()> {
+        let (mut x, y) = get_pile_position(pile);
+
+        let visible_cards = pile.get_visible_cards();
+        let all_cards_count = pile.len() as u16;
+        let mut visible_cards_count = visible_cards.len() as u16;
+
+        if visible_cards_count < all_cards_count {
+            self.draw_card_outline(x, y, Color::White)?;
+            x += 1;
+        }
+
+        if let GameObject::Pile = self.selected_object {
+            visible_cards_count -= 1;
+        }
+
+        for i in 0..visible_cards_count {
+            let card = &visible_cards[i as usize];
+            self.draw_card(card, x, y, Color::White)?;
+            x += CARD_COLS.div(2);
+        }
+
+        Ok(())
+    }
+
+    fn render_deck(&mut self, deck: &Deck) -> Result<()> {
+        let (x, y) = get_deck_position(deck);
+
+        match deck.len() {
+            0 => self.draw_card_outline(x, y, Color::DarkGrey),
+            1 => self.draw_hidden_card(x, y, Color::White),
+            _ => {
+                self.draw_hidden_card(x + 1, y, Color::White)?;
+                self.draw_hidden_card(x, y, Color::White)
+            }
+        }
+    }
+
+    fn render_suit_stack(&mut self, stack: &Stack, i: u16) -> Result<()> {
+        let (x, y) = get_suit_stack_position(i);
+
+        let last_card = match self.selected_object {
+            GameObject::SuitStack(j) if j == i => stack.prelast(),
+            _ => stack.last(),
+        };
+
+        match last_card {
+            Some(card) => self.draw_card(card, x, y, Color::White),
+            None => self.draw_suit_card_placeholder(x, y, Color::DarkGrey),
+        }
+    }
+
+    fn render_stack(&mut self, stack: &Stack, i: u16) -> Result<()> {
+        let (x, y) = get_stack_position(i);
+
+        self.draw_card_deshed_outline(x, y, Color::DarkGrey)?;
+
+        let cards = stack.get_all();
+        let len = match self.selected_object {
+            GameObject::CardOfStack { card_i, stack_i } if stack_i == i => card_i as usize,
+            GameObject::LastCardOfStack(stack_i) if stack_i == i => cards.len() - 1,
+            _ => cards.len(),
+        };
+
+        self.draw_cards_in_stack(&cards[..len], x, y, Color::White)
+    }
+
+    fn render_selected_object(&mut self, game: &Game) -> Result<()> {
+        let object = self.selected_object;
+        let (x, y) = (self.selected_object_column, self.selected_object_row);
+
+        let selected_card = match object {
+            GameObject::Pile => game.pile.get_visible_cards().last(),
+            GameObject::SuitStack(i) => game.suit_stacks[i as usize].last(),
+            GameObject::LastCardOfStack(i) => game.stacks[i as usize].last(),
+            _ => None,
+        };
+
+        if let Some(card) = selected_card {
+            self.draw_card(card, x, y, Color::White)?;
+        } else {
+            if let GameObject::CardOfStack { card_i, stack_i } = object {
+                let stack = &game.stacks[stack_i as usize];
+                let cards = &stack.get_all()[card_i as usize..];
+                self.draw_cards_in_stack(cards, x, y, Color::White)?;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn get_deck_position(deck: &Deck) -> (u16, u16) {
@@ -375,6 +413,29 @@ fn get_stack_last_card_position(stacks: &[Stack], i: u16) -> (u16, u16) {
     y += offsets_count * STACK_CARD_Y_OFFSET;
 
     (x, y)
+}
+
+fn get_index_of_card_in_stack_at(stacks: &[Stack], stack_i: u16, x: u16, y: u16) -> Option<u16> {
+    let (mut card_x, mut card_y) = get_stack_last_card_position(stacks, stack_i);
+
+    let cards = stacks[stack_i as usize].get_all();
+
+    for (i, card) in cards.iter().enumerate().rev() {
+        if card.hidden {
+            return None;
+        }
+
+        if is_point_inside_card(x, y, card_x, card_y) {
+            return Some(i as u16);
+        }
+
+        if i > 0 {
+            card_x -= STACK_CARD_X_OFFSET;
+            card_y -= STACK_CARD_Y_OFFSET;
+        }
+    }
+
+    None
 }
 
 fn is_point_outside_of_table(x: u16, y: u16) -> bool {

@@ -106,7 +106,10 @@ impl<'a> GameEngine<'a> {
             GameObject::Deck => {
                 self.on_click_on_deck();
             }
-            GameObject::Pile | GameObject::LastCardOfStack(_) | GameObject::SuitStack(_) => {
+            GameObject::Pile
+            | GameObject::LastCardOfStack(_)
+            | GameObject::SuitStack(_)
+            | GameObject::CardOfStack { .. } => {
                 self.renderer.select_object(&self.game, object);
                 self.renderer.set_selected_object_position(row, column);
             }
@@ -145,6 +148,13 @@ impl<'a> GameEngine<'a> {
             (GameObject::LastCardOfStack(i), GameObject::LastCardOfStack(j)) => {
                 self.game
                     .move_card_from_stack_to_stack(i as usize, j as usize);
+            }
+            (GameObject::CardOfStack { card_i, stack_i }, GameObject::LastCardOfStack(j)) => {
+                self.game.move_cards_from_stack_to_stack(
+                    stack_i as usize,
+                    j as usize,
+                    card_i as usize,
+                );
             }
             _ => {}
         }
